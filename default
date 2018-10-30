@@ -1,0 +1,5 @@
+# Default settings for netconsole service
+# This is a POSIX shell fragment
+
+# Additional options that are passed to the netconsole-setup script
+NETCONSOLE_OPTS=

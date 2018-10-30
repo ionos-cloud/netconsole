@@ -1,0 +1,16 @@
+[Unit]
+Description=Dynamically configure Linux netconsole
+Documentation=man:netconsole-setup(8)
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/usr
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/etc/default/netconsole
+ExecStart=/usr/sbin/netconsole-setup $NETCONSOLE_OPTS
+ExecReload=/usr/sbin/netconsole-setup $NETCONSOLE_OPTS
+
+[Install]
+WantedBy=multi-user.target

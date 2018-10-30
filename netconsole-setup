@@ -1,0 +1,131 @@
+#!/bin/bash
+set -eu
+
+# Copyright: 2018 1&1 IONOS Cloud GmbH
+# Authors: Daniel Swarbrick <daniel.swarbrick@cloud.ionos.com>
+#          Benjamin Drung <benjamin.drung@cloud.ionos.com>
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+CONFIGFS_PATH=/sys/kernel/config
+NETCONSOLE_PATH=$CONFIGFS_PATH/netconsole
+
+is_ip_address() {
+    local address="$1"
+    local returncode=1
+
+    # Check for IPv4 or IPv6 address
+    if [[ "$address" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}|([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]; then
+        returncode=0
+    fi
+    return "$returncode"
+}
+
+if [ ! -d $CONFIGFS_PATH ]; then
+    echo "${0##*/}: Kernel config directory $CONFIGFS_PATH not present." >&2
+    echo "${0##*/}: configfs probably not mounted; mounting configfs..." >&2
+    mount -t configfs configfs $CONFIGFS_PATH
+fi
+
+if [ ! -d $NETCONSOLE_PATH ]; then
+    if modprobe -n --first-time netconsole >/dev/null 2>&1; then
+        echo "${0##*/}: Loading kernel module 'netconsole'..." >&2
+        modprobe netconsole
+    else
+        echo "${0##*/}: Error: netconsole dynamic config directory '$NETCONSOLE_PATH' not present." >&2
+        exit 1
+    fi
+fi
+
+for option in "$@"; do
+    if [[ "$option" =~ ^((\+)?([0-9]+)?@)?(.+)$ ]]; then
+        if test "${BASH_REMATCH[2]}" = "+"; then
+            extended=1
+        else
+            extended=0
+        fi
+        remote_port=${BASH_REMATCH[3]}
+        target=${BASH_REMATCH[4]}
+    else
+        echo "${0##*/}: Failed to parse option '$option'. Expected format: [[+][target-port]@]target-host" >&2
+        continue
+    fi
+
+    target_path=$NETCONSOLE_PATH/$target
+
+    if is_ip_address "$target"; then
+        to_ip="$target"
+    else
+        to_ip=$(LANG=C getent hosts -- "$target" | grep -oE "^([0-9a-fA-F.:]+)" || true)
+    fi
+
+    if test -z "$to_ip"; then
+        echo "${0##*/}: Skipped host '$target'. No IP found for it." >&2
+        continue
+    fi
+
+    route=$(ip -o route get "$to_ip")
+    from_interface=$(echo "$route" | grep -oE "dev [^ ]*" | cut -d ' ' -f 2)
+    from_ip=$(echo "$route" | grep -oE "src [^ ]*" | cut -d ' ' -f 2)
+    to_gateway=$(echo "$route" | grep -oE "via [^ ]*" | cut -d ' ' -f 2)
+    if test -z "$to_gateway"; then
+        # If there is no "via" in the output of the ip route lookup, then the packets will
+        # be sent directory to the target (without any additional hops)
+        to_gateway=$to_ip
+    fi
+
+    to_mac=$(ip -o neigh show to "$to_gateway" dev "$from_interface" | grep -oE "lladdr [^ ]*" | cut -d ' ' -f 2)
+    if test -z "$to_mac"; then
+        to_mac=$(arping -c 1 -f -I "$from_interface" "$to_gateway" | sed -n 's/^.* reply from [^ ]* \[\(.*\)\].*$/\1/p')
+        to_mac="${to_mac,,}"
+    fi
+    if test -z "$to_mac"; then
+        echo "${0##*/}: $target: Cannot resolve MAC address of $to_gateway." >&2
+        exit 1
+    fi
+
+    mkdir -p "$target_path"
+
+    declare -A changes=( [dev_name]="$from_interface" [local_ip]="$from_ip"
+                         [remote_ip]="$to_ip" [remote_mac]="$to_mac" [extended]="$extended" )
+    if test -n "$remote_port"; then
+        changes[remote_port]="$remote_port"
+    fi
+
+    for config in "${!changes[@]}"; do
+        if test "$(cat "$target_path/$config")" = "${changes[$config]}"; then
+            # Setting already in the correct state
+            unset "changes[$config]"
+        fi
+    done
+
+    enabled=$(cat "$target_path/enabled")
+    if test "${#changes[@]}" -eq 0 && test "$enabled" -eq 1; then
+        echo "${0##*/}: $target already configured correctly." >&2
+    else
+        echo "${0##*/}: $target: Configure sending logs to $to_ip via MAC $to_mac from $from_ip on interface '$from_interface'." >&2
+
+        if test "$enabled" -ne 0; then
+            echo 0 > "$target_path/enabled"
+        fi
+        for config in "${!changes[@]}"; do
+            echo "${changes[$config]}" > "$target_path/$config"
+        done
+        echo 1 > "$target_path/enabled"
+    fi
+done
+
+# shellcheck disable=SC2034
+read -r console_log_level default_log_level minimum_log_level maximum_log_level < /proc/sys/kernel/printk
+log_level=$(( console_log_level > minimum_log_level ? console_log_level - 1 : console_log_level ))
+echo "<${log_level}>${0##*/}: Test log message to verify netconsole configuration." > /dev/kmsg
