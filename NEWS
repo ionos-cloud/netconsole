@@ -1,0 +1,9 @@
+netconsole 0.2 (2018-11-13)
+
+* Fix setting up configfs (Debian bug https://bugs.debian.org/913289)
+* Do nothing if no target is specified
+* README.md: Document all needed dependencies
+
+netconsole 0.1 (2018-10-30)
+
+* Initial release
