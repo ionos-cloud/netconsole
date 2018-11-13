@@ -31,6 +31,11 @@ is_ip_address() {
     return "$returncode"
 }
 
+if test "$#" -eq 0; then
+    echo "${0##*/}: No target specified. Doing nothing." >&2
+    exit 0
+fi
+
 if [ ! -d $CONFIGFS_PATH ]; then
     echo "${0##*/}: Kernel config directory $CONFIGFS_PATH not present." >&2
     echo "${0##*/}: Loading kernel module 'configfs'..." >&2
