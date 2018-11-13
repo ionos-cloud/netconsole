@@ -13,7 +13,10 @@ clean:
 check:
 	shellcheck -e SC1090,SC1091 netconsole.init netconsole-setup
 
-dist: netconsole-$(VERSION).tar.xz
+dist: netconsole-$(VERSION).tar.xz netconsole-$(VERSION).tar.xz.asc
+
+%.asc: %
+	gpg --armor --batch --detach-sign --yes --output $@ $^
 
 %.tar.xz: $(DIST)
 	tar -c --exclude-vcs --transform="s@^@$*/@" $^ | xz -cz9 > $@
