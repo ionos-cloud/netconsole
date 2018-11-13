@@ -50,11 +50,17 @@ initscript that can configure netconsole by just configuring `SYSLOGADDR`.
 The functionality is similar, but this project provides also a systemd service
 and allows to specify multiple log hosts.
 
-Prerequisites
-=============
+Dependencies
+============
 
-The command `arping` from the iputils project (provided by the `iputils-arping`
-package on Debian-based systems) needs to be available.
+Following commands need to be available for `netconsole-setup`:
+
+* `arping` from the [iputils](https://github.com/iputils/iputils) project
+(provided by the `iputils-arping` package on Debian-based systems)
+* `ip` from the [iproute2](https://wiki.linuxfoundation.org/networking/iproute2)
+project
+* `modprobe` (provided by the `kmod` package on Debian-based systems)
+* `mount`
 
 `pandoc` is required for generating the man page for netconsole-setup.
 
