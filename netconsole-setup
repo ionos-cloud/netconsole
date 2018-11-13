@@ -33,7 +33,15 @@ is_ip_address() {
 
 if [ ! -d $CONFIGFS_PATH ]; then
     echo "${0##*/}: Kernel config directory $CONFIGFS_PATH not present." >&2
-    echo "${0##*/}: configfs probably not mounted; mounting configfs..." >&2
+    echo "${0##*/}: Loading kernel module 'configfs'..." >&2
+    modprobe configfs
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm settle
+    fi
+fi
+
+if ! mount | grep -qw "$CONFIGFS_PATH"; then
+    echo "${0##*/}: configfs not mounted to '$CONFIGFS_PATH'; mounting configfs..." >&2
     mount -t configfs configfs $CONFIGFS_PATH
 fi
 
