@@ -55,8 +55,9 @@ Dependencies
 
 Following commands need to be available for `netconsole-setup`:
 
-* `arping` from the [iputils](https://github.com/iputils/iputils) project
-(provided by the `iputils-arping` package on Debian-based systems)
+* `arping` either from Thomas Habet or from the
+[iputils](https://github.com/iputils/iputils) project (provided by the
+`iputils-arping` package on Debian-based systems)
 * `ip` from the [iproute2](https://wiki.linuxfoundation.org/networking/iproute2)
 project
 * `modprobe` (provided by the `kmod` package on Debian-based systems)

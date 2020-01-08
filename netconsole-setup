@@ -31,6 +31,25 @@ is_ip_address() {
     return "$returncode"
 }
 
+ip_to_mac() {
+    local address="$1"
+    local from_interface="$2"
+
+    mac=$(ip -o neigh show to "$address" dev "$from_interface" | grep -oE "lladdr [^ ]*" | cut -d ' ' -f 2)
+    if test -z "$mac"; then
+        # Run arping to determine the MAC address for the given IP address
+        if arping -V 2>/dev/null | grep -q iputils; then
+            # iputils' arping
+            mac=$(arping -c 1 -f -I "$from_interface" "$address" | sed -n 's/^.* reply from [^ ]* \[\(.*\)\].*$/\1/p' | head -n 1)
+            mac="${mac,,}"
+        else
+            # Assume Thomas Habet's arping
+            mac=$(arping -c 1 -i "$from_interface" -r "$address" | head -n 1)
+        fi
+    fi
+    echo "$mac"
+}
+
 if test "$#" -eq 0; then
     echo "${0##*/}: No target specified. Doing nothing." >&2
     exit 0
@@ -97,11 +116,7 @@ for option in "$@"; do
         to_gateway=$to_ip
     fi
 
-    to_mac=$(ip -o neigh show to "$to_gateway" dev "$from_interface" | grep -oE "lladdr [^ ]*" | cut -d ' ' -f 2)
-    if test -z "$to_mac"; then
-        to_mac=$(arping -c 1 -f -I "$from_interface" "$to_gateway" | sed -n 's/^.* reply from [^ ]* \[\(.*\)\].*$/\1/p')
-        to_mac="${to_mac,,}"
-    fi
+    to_mac=$(ip_to_mac "$to_gateway" "$from_interface")
     if test -z "$to_mac"; then
         echo "${0##*/}: $target: Cannot resolve MAC address of $to_gateway." >&2
         exit 1
