@@ -1,3 +1,8 @@
+netconsole 0.3.1 (2020-05-11)
+
+* netconsole.init: Silence quotation complaint by shellcheck 0.7.1
+  (Debian bug https://bugs.debian.org/959603)
+
 netconsole 0.3 (2020-01-08)
 
 * Support Thomas Habet's arping

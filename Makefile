@@ -2,7 +2,7 @@ PREFIX ?= /usr/local
 SYSTEMD_PATH ?= /etc/systemd/system
 SYSV_INIT ?= /etc/init.d
 
-VERSION := 0.3
+VERSION := 0.3.1
 DIST := default LICENSE Makefile netconsole.init netconsole.service netconsole-setup netconsole-setup.8.md NEWS README.md
 
 all: doc
