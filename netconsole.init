@@ -26,6 +26,7 @@ fi
 
 case "$1" in
   start|restart|force-reload)
+	# shellcheck disable=SC2086
 	$DAEMON $NETCONSOLE_OPTS
 	;;
   status|stop)
