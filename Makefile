@@ -15,6 +15,9 @@ check:
 
 dist: netconsole-$(VERSION).tar.xz netconsole-$(VERSION).tar.xz.asc
 
+version:
+	@echo $(VERSION)
+
 %.asc: %
 	gpg --armor --batch --detach-sign --yes --output $@ $^
 
@@ -33,4 +36,4 @@ install: doc
 	install -D -m 644 netconsole.service $(DESTDIR)$(SYSTEMD_PATH)/netconsole.service
 	install -D -m 644 default $(DESTDIR)/etc/default/netconsole
 
-.PHONY: all check clean doc install
+.PHONY: all check clean doc install version
