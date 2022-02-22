@@ -98,7 +98,7 @@ for option in "$@"; do
     if is_ip_address "$target"; then
         to_ip="$target"
     else
-        to_ip=$(LANG=C getent hosts -- "$target" | grep -oE "^([0-9a-fA-F.:]+)" || true)
+        to_ip=$(LANG=C getent hosts -- "$target" | grep -oE "^([0-9a-fA-F.:]+)" | head -n 1)
     fi
 
     if test -z "$to_ip"; then
